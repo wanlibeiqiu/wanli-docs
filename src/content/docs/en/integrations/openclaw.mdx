@@ -1,41 +1,142 @@
 ---
 title: OpenClaw integration
+description: Recommended OpenClaw onboarding flow for SU8 Codes, with manual config fallback
 ---
 
-OpenClaw can connect to OpenAI Responses-compatible gateways via a custom provider (works well with SU8 Codes).
+OpenClaw now works best when you start with the official onboarding flow and then configure your model provider inside the wizard.
+For SU8 Codes, the recommended order is: **install OpenClaw → run onboarding → choose a custom provider → fill in SU8 Codes settings → verify the default model**.
 
-## What to fill in OpenClaw (fields only)
+If your local OpenClaw version looks a bit different from the screenshots in the Chinese guide, you can still use the manual fallback at the end of this page.
 
-OpenClaw is usually configured via:
+## What You Need
+
+Prepare these values first:
+
+- Base URL: `https://www.su8.codes/codex/v1`
+- API key: `<your SU8 Codes API key>`
+- Model id: `<model id>` (copy from [Models](/en/tools/models/))
+
+> `baseUrl` must end at `/v1`. Do **not** paste `/v1/responses` here.
+
+## Recommended: Use The Onboarding Flow
+
+### Step 1: Install OpenClaw
+
+```bash
+npm install -g openclaw@latest
+```
+
+### Step 2: Run onboarding
+
+```bash
+openclaw onboard --install-daemon
+```
+
+This follows the official OpenClaw quick start and installs the daemon at the same time.
+
+### Step 3: Choose a provider in the wizard
+
+Inside onboarding, go to the model provider setup step.
+If your version offers an option like “Custom Provider”, “OpenAI-compatible Provider”, or similar, choose that path for SU8 Codes.
+
+### Step 4: Fill in the SU8 Codes provider details
+
+Use the following values:
+
+- Provider name / id: `su8`
+- Base URL: `https://www.su8.codes/codex/v1`
+- API key: `<your SU8 Codes API key>`
+- API / protocol: choose `OpenAI Responses` (or an equivalent option) if shown
+- Model: `<model id>`
+
+If the wizard also asks for a default model, use:
+
+```text
+su8/<model id>
+```
+
+## Verify The Setup
+
+Check that OpenClaw can see the provider and model:
+
+```bash
+openclaw models list
+```
+
+If needed, set the default model explicitly:
+
+```bash
+openclaw models set su8/<model id>
+```
+
+If you are continuing the full OpenClaw Gateway flow, you can then run:
+
+```bash
+openclaw channels login
+openclaw gateway --port 18789
+```
+
+Useful follow-up pages:
+
+- [API Tester](/en/tools/api-tester/)
+- [Troubleshooting](/en/codex/troubleshooting/)
+
+## Manual Config Fallback
+
+If your OpenClaw build does not expose the same wizard options, edit:
 
 - `~/.openclaw/openclaw.json`
 
-Add (or edit) a custom provider and fill the key fields:
-
-- `baseUrl`: `https://www.su8.codes/codex/v1` (from `https://www.su8.codes/codex/v1/responses`, remove `/responses`)
-- `apiKey`: `<your SU8 Codes API key>`
-- `api`: `openai-responses`
-- `models[].id`: `<model id>` (copy from [Models](/en/tools/models/))
-
-Example (key fields only):
+Minimal working config:
 
 ```json5
 {
   models: {
+    mode: "merge",
     providers: {
       su8: {
         baseUrl: "https://www.su8.codes/codex/v1",
         apiKey: "<your SU8 Codes API key>",
         api: "openai-responses",
-        models: [{ id: "<model id>", name: "<model id>" }]
-      }
-    }
-  }
+        models: [{ id: "<model id>", name: "<model id>" }],
+      },
+    },
+  },
+
+  agents: {
+    defaults: {
+      model: {
+        primary: "su8/<model id>",
+      },
+    },
+  },
 }
 ```
 
-Quick check:
-- [API Tester](/en/tools/api-tester/)
+## Field Notes
 
-If errors happen:
-- [Troubleshooting](/en/codex/troubleshooting/)
+- `baseUrl`: `https://www.su8.codes/codex/v1`
+- `apiKey`: your SU8 Codes API key
+- `api`: `openai-responses`
+- `models[].id`: must exactly match the model id on the platform
+- `agents.defaults.model.primary`: must use the `provider/model` format, for example `su8/<model id>`
+
+## Common Pitfalls
+
+1. **`baseUrl` includes `/responses`**
+   - Use `https://www.su8.codes/codex/v1` instead
+
+2. **Provider is configured but default model is not set**
+   - OpenClaw may keep running on a different provider or model
+
+3. **Model id does not match the actual platform model id**
+   - Make sure both `models[].id` and `su8/<model id>` use the exact same model id
+
+4. **Config changes are made but the daemon is not restarted**
+   - If you installed a daemon during onboarding, restart the relevant background process and open a fresh session
+
+## References
+
+- OpenClaw quick start: https://docs.openclaw.ai/zh-CN
+- OpenClaw providers: https://docs.openclaw.ai/zh-CN/providers
+- OpenClaw model provider concepts: https://docs.openclaw.ai/zh-CN/concepts/model-providers
