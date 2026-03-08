@@ -1,27 +1,112 @@
 ---
 title: OpenClaw 接入
+description: 推荐按 OpenClaw 向导接入 SU8 Codes，并保留手动配置兜底方案
 ---
 
-OpenClaw 支持通过自定义 Provider 接入 OpenAI Responses 协议（适合把请求转到 SU8 Codes 这类网关）。
+OpenClaw 现在更推荐先走官方的 onboarding 向导，再在向导里完成模型提供商配置。
+如果你想把 OpenClaw 接到 SU8 Codes，建议优先按下面这套流程操作：**先安装 → 再运行向导 → 选择自定义 Provider → 填入 SU8 Codes 配置 → 最后验证默认模型**。
 
-## 在 OpenClaw 里怎么填（只讲字段）
+如果你的 OpenClaw 版本界面和截图略有差异，也没关系：文末保留了 `~/.openclaw/openclaw.json` 的手动配置兜底方案。
 
-OpenClaw 的配置文件通常在：
+## 你需要准备什么
+
+在开始前，先准备好这 3 个信息：
+
+- Base URL：`https://www.su8.codes/codex/v1`
+- API Key：`<你的 SU8 Codes API Key>`
+- 模型名：`<模型名>`（可从 [模型列表](/zh/tools/models/) 复制）
+
+> 注意：`baseUrl` 必须写到 `/v1`，**不要**直接写成 `/v1/responses`。
+
+## 推荐方式：按 OpenClaw 向导配置
+
+### 步骤 1：安装 OpenClaw
+
+先按官方快速开始安装最新版 OpenClaw：
+
+```bash
+npm install -g openclaw@latest
+```
+
+![OpenClaw 安装界面](/openaclaw/1.安装openclaw.png)
+
+### 步骤 2：运行 onboarding 向导
+
+安装完成后，执行官方推荐的初始化命令：
+
+```bash
+openclaw onboard --install-daemon
+```
+
+这一步会进入 OpenClaw 的初始化 / onboarding 流程，并安装后台服务。
+
+![OpenClaw 初始化界面](/openaclaw/2.初始化.png)
+
+### 步骤 3：在向导中选择模型提供商
+
+在 onboarding 流程里，按截图选择模型提供商配置入口。
+如果你的版本里有“自定义 Provider / OpenAI 兼容 Provider / 自定义供应商”之类的选项，优先选择这一类入口。
+
+![OpenClaw 选择供应商](/openaclaw/3.选择供应商.png)
+
+### 步骤 4：填写 SU8 Codes 的 Provider 信息
+
+在 Provider 详情页里，按下面的规则填写：
+
+- Provider 名称 / ID：建议填 `su8`
+- Base URL：`https://www.su8.codes/codex/v1`
+- API Key：`<你的 SU8 Codes API Key>`
+- API / 协议：如果界面有协议选项，优先选择 `OpenAI Responses` 或等价选项
+- Model：填写你准备使用的模型名，例如 `<模型名>`
+
+如果界面里还要求你设置默认模型，推荐直接设置为：
+
+```text
+su8/<模型名>
+```
+
+![OpenClaw 配置供应商信息](/openaclaw/4.配置供应商信息.png)
+
+## 配完后怎么验证
+
+完成向导后，建议至少做下面几步：
+
+1. 查看 OpenClaw 是否已经识别到 Provider / Model：
+
+```bash
+openclaw models list
+```
+
+2. 如果默认模型还没切过去，手动设置一次：
+
+```bash
+openclaw models set su8/<模型名>
+```
+
+3. 如果你还在继续官方 Gateway 流程，可继续执行：
+
+```bash
+openclaw channels login
+openclaw gateway --port 18789
+```
+
+4. 最后用这些页面做联调和排错：
+
+- [在线 API 测试](/zh/tools/api-tester/)
+- [常见错误排查](/zh/codex/troubleshooting/)
+
+## 手动配置兜底
+
+如果你的 OpenClaw 版本没有对应向导项，或者你更习惯直接改配置文件，可以手动编辑：
 
 - `~/.openclaw/openclaw.json`
 
-在配置中新增（或修改）一个 Provider，并填写关键字段：
-
-- `baseUrl`：`https://www.su8.codes/codex/v1`（从 `https://www.su8.codes/codex/v1/responses` 删掉 `/responses`）
-- `apiKey`：`<你的 SU8 Codes API Key>`
-- `api`：`openai-responses`
-- `models[].id`：`<模型名>`（可从 [模型列表](/zh/tools/models/) 复制）
-
-示例（只保留关键字段，便于你对照填值）：
+推荐最小配置如下：
 
 ```json5
 {
   models: {
+    mode: "merge",
     providers: {
       su8: {
         baseUrl: "https://www.su8.codes/codex/v1",
@@ -31,11 +116,42 @@ OpenClaw 的配置文件通常在：
       },
     },
   },
+
+  agents: {
+    defaults: {
+      model: {
+        primary: "su8/<模型名>",
+      },
+    },
+  },
 }
 ```
 
-配置完成后，先用这页自检（最快）：
-- [在线 API 测试](/zh/tools/api-tester/)
+## 字段说明
 
-如果报错按这页排：
-- [常见错误排查](/zh/codex/troubleshooting/)
+- `baseUrl`：填 `https://www.su8.codes/codex/v1`
+- `apiKey`：填你的 SU8 Codes API Key
+- `api`：填 `openai-responses`
+- `models[].id`：必须和模型列表中的模型名完全一致
+- `agents.defaults.model.primary`：格式必须是 `provider/model`，也就是本例中的 `su8/<模型名>`
+
+## 常见坑
+
+1. **把 `baseUrl` 填成了 `.../responses`**
+   - 正确写法是 `https://www.su8.codes/codex/v1`
+   - `responses` 是请求路径，不是 Provider 的基础地址
+
+2. **只配了 Provider，没有设置默认模型**
+   - 表现通常是“看起来已经接好了，但实际跑的还是别的模型”
+
+3. **模型名和平台里的模型 ID 不一致**
+   - `models[].id` 和 `su8/<模型名>` 里的模型名都要和平台实际模型 ID 一致
+
+4. **改完配置后没有重启 OpenClaw / daemon**
+   - 如果你使用了 `openclaw onboard --install-daemon`，改完配置后最好重启相关后台进程，再重新开一个新会话验证
+
+## 参考链接
+
+- OpenClaw 官方快速开始：https://docs.openclaw.ai/zh-CN
+- OpenClaw 模型提供商文档：https://docs.openclaw.ai/zh-CN/providers
+- OpenClaw 模型提供商概念说明：https://docs.openclaw.ai/zh-CN/concepts/model-providers
